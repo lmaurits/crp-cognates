@@ -172,35 +172,6 @@ class Clusterer:
                     lh += safety_log(between.pdf(matrix[x][y]))
             self.likelihoods[i] = lh
             continue
-
-
-            # In principle, we want to accurately marginalise over all points
-            # possibly being the center of their subset.  To speed things up,
-            # we do approximate inference by drawing a uniformly random
-            # centre for each subset, repeating this 10 times and using the
-            # mean likelihood over these samples.
-            # TODO: assess how good an idea this is!
-            for i in range(0,10):
-                partition_lh = 1
-                centres = [random.sample(cluster,1)[0] for cluster in part]
-                between_dists = [matrix[x][y] for x,y in itertools.combinations(centres,2)]
-                between_probs = between.pdf(between_dists)
-                for p in between_probs:
-                    partition_lh *= p
-                for centre, cluster in zip(centres, part):
-                    distances = []
-                    for x in cluster:
-                        if x == centre:
-                            continue
-                        distances.append(matrix[centre][x])
-                    probs = within.pdf(distances)
-                    for prob in probs:
-                        partition_lh *= prob
-                mean_lh += partition_lh
-            if mean_lh == 0.0 or mean_lh / 10.0 == 0.0:
-                self.likelihoods[i] = -sys.maxsize
-            else:
-                self.likelihoods[i] = math.log(mean_lh / 10.0)
         return sum(self.likelihoods)
 
     def snapshot(self):
