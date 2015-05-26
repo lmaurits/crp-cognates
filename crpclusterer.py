@@ -163,7 +163,9 @@ class Clusterer:
             within = scipy.stats.norm(loc=self.within_mu,scale=self.within_sigma)
             between = scipy.stats.norm(loc=self.between_mu,scale=self.between_sigma)
             lh = 0
-            for x,y in itertools.combinations(range(0,len(part)),2):
+            for x,y in itertools.combinations(range(0,len(matrix)),2):
+                if x == y:
+                    continue
                 if any([x in bit and y in bit for bit in part]):
                     lh += safety_log(within.pdf(matrix[x][y]))
                 else:
