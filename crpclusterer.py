@@ -12,7 +12,7 @@ def safety_log(x):
     try:
         return math.log(x)
     except ValueError:
-        return -sys.maxsize
+        return -9999.0
 
 class Clusterer:
 
