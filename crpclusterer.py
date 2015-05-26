@@ -36,7 +36,7 @@ class Clusterer:
 
         # Controls
         self.verbose = True
-        self.change_partition = True
+        self.change_partitions = True
         self.change_params = True
 
     def init_partitions(self):
@@ -226,13 +226,18 @@ class Clusterer:
 
     def draw_proposal(self):
         """Make a random change to the state space."""
-        roll = random.random()
-        if self.change_params and 0 <= roll < 0.50:
-            # Half the time, change the parameters
-            self.move_change_params()
-        else:
-            # The other half, change the partition
-            self.move_change_partition()
+        if self.change_params and self.change_partitions:
+            roll = random.random()
+            if 0 <= roll < 0.50:
+                # Half the time, change the parameters
+                self.move_change_params()
+            else:
+                # The other half, change the partition
+                self.move_change_partition()
+        elif self.change_params:
+                self.move_change_params()
+        elif self.change_partitions:
+                self.move_change_partition()
 
     def move_change_params(self):
         """Choose one of the model parameters at random and multiply it by a
