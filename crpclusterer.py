@@ -83,7 +83,7 @@ class Clusterer:
             self.dirty_parts = [False for part in self.partitions]
             self.draw_proposal()
             new_poster = self.compute_posterior()
-            if self.prior and new_poster > self.poster:
+            if new_poster > self.poster:
                 # Accept
                 self.poster = new_poster
                 self.failed_attempts = 0
