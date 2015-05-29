@@ -69,9 +69,36 @@ def extend_csv(in_filename, out_filename, cogids, ref):
                 first = False
                 line = line.strip() + "\t%s\n" % ref
             else:
-                id_ = line.split()[0]
+                id_ = int(line.split()[0])
                 line = line.strip() + "\t%s\n" % cogids[id_]
             fp_out.write(line)
 
     fp_in.close()
     fp_out.close()
+
+def read_gold_partitions(filename):
+    id_list = []
+    part_list = []
+    fp = open(filename, "r")
+    # Read headers
+    for i in range(0, 3):
+        fp.readline()
+    # Handle meaning classes
+    cogsets = {}
+    ids = []
+    for line in fp:
+        if line.strip() == "#":
+            # End of meaningclass
+            part_list.append(list(cogsets.values()))
+            cogsets = {}
+            ids = []
+        else:
+            bits = line.strip().split("\t")
+            idd, cogid = map(abs,map(int,(bits[0], bits[-1])))
+            if cogid in cogsets:
+                cogsets[cogid].append(idd)
+            else:
+                cogsets[cogid] = [idd,]
+    part_list.append(list(cogsets.values()))
+    fp.close()
+    return part_list
