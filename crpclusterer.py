@@ -21,18 +21,22 @@ class Clusterer:
         self.matrices = matrices
         self.partitions = []
 
-        # Caching stuff
-        self.dirty_theta = True
-        self.dirty_parts = []
-        self.crp_likelihood = 0.0
-        self.likelihoods = []
-
         # Model params
         self.theta = 1.00
         self.within_mu = 0.25
         self.within_sigma = 0.1
         self.between_mu = 0.75
         self.between_sigma = 0.1
+
+        # Caching stuff
+        self.dirty_theta = True
+        self.dirty_parts = []
+        self.crp_likelihood = 0.0
+        self.likelihoods = []
+        self.w_lh_cache = {}
+        self.b_lh_cache = {}
+        self.update_lh_cache("within")
+        self.update_lh_cache("between")
 
         # Controls
         self.verbose = True
@@ -66,6 +70,22 @@ class Clusterer:
             self.partitions.append(part)
             self.dirty_parts.append(True)
             self.likelihoods.append(0)
+
+    def update_lh_cache(self, w_or_b):
+
+        if w_or_b == "within":
+            dist = scipy.stats.norm(loc=self.within_mu,scale=self.within_sigma)
+        elif w_or_b == "between":
+            dist = scipy.stats.norm(loc=self.between_mu,scale=self.between_sigma)
+
+        distances = [i/100 for i in range(0,101)]
+        lhs = dist.pdf(distances)
+        lhs = [safety_log(l) for l in lhs]
+
+        if w_or_b == "within":
+            self.w_lh_cache = dict(zip(distances, lhs))
+        elif w_or_b == "between":
+            self.b_lh_cache = dict(zip(distances, lhs))
 
     def find_MAP(self, iterations=1000):
         """Attempt to find the partition and parameter values which
@@ -160,18 +180,15 @@ class Clusterer:
         for i, (part, dirty, matrix) in enumerate(zip(self.partitions, self.dirty_parts, self.matrices)):
             if not dirty:
                 continue
-            within = scipy.stats.norm(loc=self.within_mu,scale=self.within_sigma)
-            between = scipy.stats.norm(loc=self.between_mu,scale=self.between_sigma)
             lh = 0
-            for x,y in itertools.combinations(range(0,len(matrix)),2):
+            for x,y in itertools.combinations(range(0,sum([len(subset) for subset in part])),2):
                 if x == y:
                     continue
                 if any([x in bit and y in bit for bit in part]):
-                    lh += safety_log(within.pdf(matrix[x][y]))
+                    lh += self.w_lh_cache[matrix[x][y]]
                 else:
-                    lh += safety_log(between.pdf(matrix[x][y]))
+                    lh += self.b_lh_cache[matrix[x][y]]
             self.likelihoods[i] = lh
-            continue
         return sum(self.likelihoods)
 
     def snapshot(self):
@@ -179,6 +196,8 @@ class Clusterer:
         self.snapped_partitions = copy.deepcopy(self.partitions)
         self.snapped_crp_likelihood = self.crp_likelihood
         self.snapped_likelihoods = self.likelihoods[:]
+        self.snapped_w_lh_cache = self.w_lh_cache.copy()
+        self.snapped_b_lh_cache = self.b_lh_cache.copy()
         self.snapped_theta = self.theta
         self.snapped_within_mu = self.within_mu
         self.snapped_within_sigma = self.within_sigma
@@ -191,6 +210,8 @@ class Clusterer:
         self.partitions = self.snapped_partitions
         self.crp_likelihood = self.snapped_crp_likelihood
         self.likelihoods = self.snapped_likelihoods
+        self.w_lh_cache = self.snapped_w_lh_cache
+        self.b_lh_cache = self.snapped_b_lh_cache
         self.theta = self.snapped_theta
         self.within_mu = self.snapped_within_mu
         self.within_sigma = self.snapped_within_sigma
@@ -235,12 +256,16 @@ class Clusterer:
             return
         elif 0.20 <= roll < 0.40:
             self.within_mu *= mult
+            self.update_lh_cache("within")
         elif 0.40 <= roll < 0.60:
             self.within_sigma *= mult
+            self.update_lh_cache("within")
         elif 0.60 <= roll < 0.80:
             self.between_mu *= mult
+            self.update_lh_cache("between")
         else:
             self.between_sigma *= mult
+            self.update_lh_cache("between")
         self.dirty_parts = [True for part in self.partitions]
 
     def move_change_partition(self):
