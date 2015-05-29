@@ -17,6 +17,9 @@ def read_data(filename):
         if line == "#":
             # This indicates the end of a meaning class
             id_list.append(ids)
+            # Replace diagonal zeros
+            for i in range(0, len(matrix)):
+                matrix[i][i] = 0.0
             matrix_list.append(matrix)
         elif len(line.split()) == 1:
             # This indicates the beginning of a new meaning class
@@ -24,8 +27,15 @@ def read_data(filename):
             matrix = []
         else:
             # This is one row of a matrix
-            ids.append(line.split()[0])
-            matrix.append([float(p) for p in line.split()[1:]])
+            ids.append(int(line.split()[0]))
+            row =  [float(p) for p in line.split()[1:]]
+            # Replace extrema with not-quite-so-extrema.
+            # This avoids explosions with Beta likelihoods.
+            # Zeros on diagonals are not problematic, and these
+            # get replaced later.
+            row = [r if r > 0.0 else 0.01 for r in row]
+            row = [r if r < 1.0 else 0.99 for r in row]
+            matrix.append(row)
     fp.close()
     return id_list, matrix_list
 
