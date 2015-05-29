@@ -404,3 +404,61 @@ class Clusterer:
 
     def instrument(self):
         print("\t".join(["%.2f" % x for x in (self.prior, self.lh, self.poster, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma)]))
+
+class BetaClusterer(Clusterer):
+
+    def __init__(self, matrices):
+
+        Clusterer.__init__(self, matrices)
+        self.within_mu = 2
+        self.within_sigma = 2
+        self.between_mu = 2
+        self.between_sigma = 2
+        self.update_lh_cache("within")
+        self.update_lh_cache("between")
+
+    def compute_prior(self):
+        """Compute log prior on model parameters."""
+
+        prior = 0
+
+        # Prior on theta
+        # A fairly arbitrary Gamma prior which is basically chosen
+        # to trade off between gernally preferring lower theta over higher
+        # theta, but not wanting *too* low of a theta.
+        p = scipy.stats.gamma.pdf(self.theta, 4.0, loc=0.0, scale=1/2.0)
+        prior += safety_log(p)
+
+        # Prior on within_mu
+        # (Beta distribution prior)
+        prior += safety_log(0.01*math.exp(-1*0.01*self.within_mu))
+
+        # Prior on within_sigma
+        # (exponential prior)
+        prior += safety_log(0.01*math.exp(-1*0.01*self.within_sigma))
+
+        # Prior on between_mu
+        # (Beta distribution prior)
+        prior += safety_log(0.01*math.exp(-1*0.01*self.between_mu))
+
+        # Prior on between_sigma
+        # (exponential prior)
+        prior += safety_log(0.01*math.exp(-1*0.01*self.between_sigma))
+        self.prior = prior
+        return prior
+
+    def update_lh_cache(self, w_or_b):
+
+        if w_or_b == "within":
+            dist = scipy.stats.beta(self.within_mu,self.within_sigma)
+        elif w_or_b == "between":
+            dist = scipy.stats.beta(self.between_mu,self.between_sigma)
+
+        distances = [i/100 for i in range(0,101)]
+        lhs = dist.pdf(distances)
+        lhs = [safety_log(l) for l in lhs]
+
+        if w_or_b == "within":
+            self.w_lh_cache = dict(zip(distances, lhs))
+        elif w_or_b == "between":
+            self.b_lh_cache = dict(zip(distances, lhs))
