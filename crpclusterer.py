@@ -43,29 +43,35 @@ class Clusterer:
         self.change_partitions = True
         self.change_params = True
 
-    def init_partitions(self):
+    def init_partitions(self, method="thresh"):
         """Construct initial partitions for all matrices.  This is not done
         randomly, but rather we try to start things off in a state which is
         likely to be not too terrible."""
 
         for matrix in self.matrices:
-            # Start off by sticking 0 in it's own class
-            part = [[0]]
-            # Then, for everything else...
-            for i in range(1,len(matrix)):
-                assigned = False
-                for bit in part:
-                    # Put it in a class if it's close to the first member of that class
-                    if matrix[i][bit[0]] <= 0.35:
-                        bit.append(i)
-                        assigned = True
-                        break
-                # If this item didn't get put in an existing class, put it in a new one
-                if not assigned:
-                    part.append([i])
+            roll = random.randint(1,3)
+            if method == "thresh" or (method == "rand" and roll == 1):
+                # Start off by sticking 0 in it's own class
+                part = [[0]]
+                # Then, for everything else...
+                for i in range(1,len(matrix)):
+                    assigned = False
+                    for bit in part:
+                        # Put it in a class if it's close to the first member of that class
+                        if matrix[i][bit[0]] <= 0.33:
+                            bit.append(i)
+                            assigned = True
+                            break
+                    # If this item didn't get put in an existing class, put it in a new one
+                    if not assigned:
+                        part.append([i])
 
-            # Make sure there are no duplicates or missing values
-            assert sum([len(bit) for bit in part]) == len(matrix)
+                # Make sure there are no duplicates or missing values
+                assert sum([len(bit) for bit in part]) == len(matrix)
+            elif method == "lump" or (method == "rand" and roll == 2):
+                part = [list(range(0,len(matrix))),]
+            elif method == "split" or (method == "rand" and roll == 3):
+                part = [[i] for i in range(0,len(matrix))]
 
             self.partitions.append(part)
             self.dirty_parts.append(True)
