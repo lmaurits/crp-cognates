@@ -99,7 +99,7 @@ class Clusterer:
         specified number of iterations, or terminates after 100 consecutive
         failures to find an improved posterior."""
 
-        self.poster = self.compute_posterior()
+        self.posterior = self.compute_posterior()
         self.failed_attempts = 0
         if self.verbose:
             print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
@@ -109,9 +109,9 @@ class Clusterer:
             self.dirty_parts = [False for part in self.partitions]
             self.draw_proposal()
             new_poster = self.compute_posterior()
-            if new_poster > self.poster:
+            if new_poster > self.posterior:
                 # Accept
-                self.poster = new_poster
+                self.posterior = new_poster
                 self.failed_attempts = 0
                 if self.verbose:
                     self.instrument()
