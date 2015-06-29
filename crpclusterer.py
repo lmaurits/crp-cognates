@@ -409,7 +409,7 @@ class Clusterer:
         return True
 
     def instrument(self):
-        print("\t".join(["%.2f" % x for x in (self.prior, self.lh, self.poster, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma)]))
+        print("\t".join(["%.6f" % x for x in (self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma, [len(p) for p in self.partitions].count(1), [len(p) for p in self.partitions].count(max([len(p) for p in self.partitions])))]))
 
 class BetaClusterer(Clusterer):
 
