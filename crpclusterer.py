@@ -7,6 +7,7 @@ import random
 import sys
 
 import scipy.stats
+from scipy.misc import comb as Choose
 
 def safety_log(x):
     try:
@@ -122,6 +123,56 @@ class Clusterer:
                 if self.failed_attempts == 100:
                     break
 
+    def sample_posterior(self, iterations, burnin, lag, filename=None):
+        self.posterior = self.compute_posterior()
+        if self.verbose:
+            print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
+        for i in range(0, burnin):
+            self.make_mcmc_move()
+        if filename:
+            fp = open(filename, "w")
+            fp.write("\t".join("Sample Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split())+"\n")
+        iters = 0
+        while iters < iterations:
+            for i in range(0, lag):
+                self.make_mcmc_move()
+            if self.verbose:
+                self.instrument()
+            if filename:
+                fp.write(("%d\t" % iters) + "\t".join(["%.6f" % x for x in (self.prior, self.lh, self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma)])+"\n")
+            yield (self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma, self.partitions)
+            iters += 1
+        if filename:
+            fp.close()
+
+    def make_mcmc_move(self):
+        self.snapshot()
+        self.dirty_theta = False
+        self.dirty_parts = [False for part in self.partitions]
+        self.draw_proposal()
+        # Just fail if we draw an absurdly high theta
+        if self.theta > 100.0:
+            self.revert()
+            return
+        old_poster = self.posterior
+        new_poster = self.compute_posterior()
+        #print(old_poster, new_poster)
+        try:
+            poster_ratio = math.exp(new_poster - old_poster)
+        except OverflowError:
+            if new_poster >= old_poster:
+                poster_ratio = 1.0
+            else:
+                poster_ratio = 0.0
+        acceptance_prob = poster_ratio * self.proposal_ratio
+        #print(poster_ratio, self.proposal_ratio, acceptance_prob)
+        if acceptance_prob >= 1.0 or random.random() <= acceptance_prob:
+            # Accept
+            self.posterior = new_poster
+        else:
+            # Reject
+            self.revert()
+
     def compute_posterior(self):
         return self.compute_prior() + self.compute_lh()
 
@@ -181,6 +232,7 @@ class Clusterer:
             for bit in part:
                 lh += safety_log(math.gamma(len(bit)))
         self.crp_likelihood = lh
+        self.dirty_theta = False
         return lh
 
     def get_matrix_lh(self):
@@ -295,32 +347,59 @@ class Clusterer:
         while not moved:
             index = random.randint(0,len(self.partitions)-1)
             part = self.partitions[index]
-            operator = random.sample(
-                    (   self.move_merge,
-                        self.move_split,
-                        self.move_reassign,
-                        self.move_swap,
-                        self.move_shuffle,
-                        self.move_smart),
-                    1)[0]
-            if operator == self.move_smart:
-                matrix = self.matrices[index]
-                moved = operator(part, matrix)
+            if random.random() < 0.75:
+                operator = random.sample(
+                        (   self.move_reassign,
+                            self.move_swap,
+                            self.move_shuffle),
+                        1)[0]
             else:
-                moved = operator(part)
-        self.dirty_parts[self.partitions.index(part)] = True
+                operator = random.sample(
+                        (   self.move_merge,
+                            self.move_split),
+                        1)[0]
+            moved = operator(part)
+        self.dirty_parts[index] = True
+
+    def move_change_many_things(self):
+        # Change parameters
+        mult = random.normalvariate(1.0,0.10)
+        self.theta *= mult
+        self.dirty_theta = True
+        if mult > 1:
+            # If theta got bigger, we'll want to split some cognate sets
+            operator = self.move_split
+            self.within_sigma /= mult
+            self.between_sigma *= mult
+        elif mult < 1:
+            # If theta got smaller, we'll want to merge sets
+            operator = self.move_merge
+            self.within_sigma *= mult
+            self.between_sigma /= mult
+        self.update_lh_cache("within")
+        self.update_lh_cache("between")
+
+        # Split or merge some partitions
+        n = random.randint(1,len(self.partitions))
+        indices = random.sample(range(0,len(self.partitions)),n)
+        for index in indices:
+            part = self.partitions[index]
+            self.dirty_parts[index] = operator(part)
 
     def move_merge(self, part):
         """Choose two sets of the partition at random and merge them."""
         random.shuffle(part)
+        old_len = len(part)
         if len(part) == 1:
             # If the partition is just one big set there's nothing to merge!
             return False
         newset = []
         newset.extend(part.pop())
+        mid_size = len(newset)
         newset.extend(part.pop())
         part.append(newset)
         self.dirty_theta = True
+        self.proposal_ratio *= (1 / len(newset))*Choose(len(newset),mid_size) / Choose(old_len,2)
         return True
 
     def move_split(self, part):
@@ -329,7 +408,9 @@ class Clusterer:
             # If all sets of the partition are singletons there's nothing to split!
             return False
         random.shuffle(part)
+        old_part_length = len(part)
         partbit = part.pop()
+        old_set_length = len(partbit)
         while len(partbit) == 1:
             part.append(partbit)
             random.shuffle(part)
@@ -343,6 +424,7 @@ class Clusterer:
             part.append(partbit[0:pivot])
             part.append(partbit[pivot:])
         self.dirty_theta = True
+        self.proposal_ratio *= Choose(len(part),2) / ((1/old_part_length)*Choose(old_set_length,len(part[-2])))
         return True
 
     def move_reassign(self, part):
@@ -356,6 +438,7 @@ class Clusterer:
         if not bit_a:
             part.remove(bit_a)
         self.dirty_theta = True
+        self.proposal_ratio = 1.0
         return True
 
     def move_swap(self, part):
@@ -371,6 +454,7 @@ class Clusterer:
         x_b = bit_b.pop()
         bit_a.append(x_b)
         bit_b.append(x_a)
+        self.proposal_ratio = 1.0
         return True
 
     def move_shuffle(self, part):
@@ -387,7 +471,7 @@ class Clusterer:
                 new_bit.append(words.pop())
             new_part.append(new_bit)
         part.extend(new_part)
-        self.dirty_theta = True
+        self.proposal_ratio = 1.0
         return True
 
     def move_smart(self, part, mat):
