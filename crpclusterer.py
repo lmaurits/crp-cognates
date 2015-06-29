@@ -22,7 +22,7 @@ class Clusterer:
         self.partitions = []
 
         # Model params
-        self.theta = 1.00
+        self.theta = 0.25
         self.within_mu = 0.25
         self.within_sigma = 0.1
         self.between_mu = 0.75
@@ -134,7 +134,10 @@ class Clusterer:
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
         # theta, but not wanting *too* low of a theta.
-        p = scipy.stats.gamma.pdf(self.theta, 4.0, loc=0.0, scale=1/2.0)
+        if self.theta > 3.0:
+            p = 0.0
+        else:
+            p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
         prior += safety_log(p)
 
         # Prior on within_mu
@@ -144,7 +147,7 @@ class Clusterer:
 
         # Prior on within_sigma
         # (exponential prior)
-        prior += safety_log(0.01*math.exp(-1*0.01*self.within_sigma))
+        prior += safety_log(1.5*math.exp(-1*1.5*self.within_sigma))
 
         # Prior on between_mu
         # (Beta distribution prior)
@@ -153,7 +156,7 @@ class Clusterer:
 
         # Prior on between_sigma
         # (exponential prior)
-        prior += safety_log(0.01*math.exp(-1*0.01*self.between_sigma))
+        prior += safety_log(1.5*math.exp(-1*1.5*self.between_sigma))
         self.prior = prior
         return prior
 
@@ -226,50 +229,60 @@ class Clusterer:
 
     def draw_proposal(self):
         """Make a random change to the state space."""
+        self.proposal_ratio = 1.0
         if self.change_params and self.change_partitions:
             roll = random.random()
-            if 0 <= roll < 0.50:
+            if roll < 0.33:
                 # Half the time, change the parameters
                 self.move_change_params()
-            else:
+            elif roll < 0.75:
                 # The other half, change the partition
+                #self.move_change_partition()
                 self.move_change_partition()
+            else:
+                self.move_change_many_things()
         elif self.change_params:
-                self.move_change_params()
+            self.move_change_params()
         elif self.change_partitions:
-                self.move_change_partition()
+            self.move_change_partition()
 
     def move_change_params(self):
         """Choose one of the model parameters at random and multiply it by a
         Normally distributed random scale."""
+
+        # This move is completely symmetric so:
+        self.proposal_ratio *= 1.0
+
         # Choose a scaling value
-        roll = random.randint(1,4)
-        if roll == 1:
-            mult = random.normalvariate(1.0,0.05)
-        elif roll == 2:
-            mult = random.normalvariate(1.0,0.10)
-        elif roll == 3:
-            mult = random.normalvariate(1.0,0.20)
-        else:
-            mult = random.normalvariate(1.0,0.30)
+        mult = - 1.0
 
         # Choose a parameter and scale it
         roll = random.random()
-        if roll < 0.20:
+        if roll < 0.05:
+            while mult < 0:
+                mult = random.normalvariate(1.0,0.3)
             self.theta *= mult
             self.dirty_theta = True
             # Return now so that dirty_parts is not touched
             return
-        elif 0.20 <= roll < 0.40:
+        elif 0.05 <= roll < 0.2875:
+            while mult < 0:
+                mult = random.normalvariate(1.0,0.002)
             self.within_mu *= mult
             self.update_lh_cache("within")
-        elif 0.40 <= roll < 0.60:
+        elif 0.2875 <= roll < 0.525:
+            while mult < 0:
+                mult = random.normalvariate(1.0,0.002)
             self.within_sigma *= mult
             self.update_lh_cache("within")
-        elif 0.60 <= roll < 0.80:
+        elif 0.525 <= roll < 0.7625:
+            while mult < 0:
+                mult = random.normalvariate(1.0,0.002)
             self.between_mu *= mult
             self.update_lh_cache("between")
         else:
+            while mult < 0:
+                mult = random.normalvariate(1.0,0.002)
             self.between_sigma *= mult
             self.update_lh_cache("between")
         self.dirty_parts = [True for part in self.partitions]
