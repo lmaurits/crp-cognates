@@ -13,7 +13,7 @@ def safety_log(x):
     try:
         return math.log(x)
     except ValueError:
-        return -9999.0
+        return -999999.0
 
 class Clusterer:
 
@@ -63,7 +63,7 @@ class Clusterer:
                     assigned = False
                     for bit in part:
                         # Put it in a class if it's close to the first member of that class
-                        if matrix[i][bit[0]] <= 0.33:
+                        if matrix[i][bit[0]] <= 0.50:
                             bit.append(i)
                             assigned = True
                             break
@@ -300,10 +300,10 @@ class Clusterer:
         self.proposal_ratio = 1.0
         if self.change_params and self.change_partitions:
             roll = random.random()
-            if roll < 0.33:
+            if roll < 0.50:
                 # Half the time, change the parameters
                 self.move_change_params()
-            elif roll < 0.75:
+            elif roll < 1.00:
                 # The other half, change the partition
                 #self.move_change_partition()
                 self.move_change_partition()
@@ -330,7 +330,7 @@ class Clusterer:
         if roll < 0.1666:
             self.operator = "scale_theta"
             while mult < 0:
-                mult = random.normalvariate(1.0,0.3)
+                mult = random.normalvariate(1.0,0.1)
             self.theta *= mult
             self.dirty_theta = True
             # Return now so that dirty_parts is not touched
