@@ -36,6 +36,7 @@ class Clusterer:
         self.likelihoods = []
         self.w_lh_cache = {}
         self.b_lh_cache = {}
+        self.build_distance_list()
         self.update_lh_cache("within")
         self.update_lh_cache("between")
 
@@ -78,6 +79,14 @@ class Clusterer:
             self.dirty_parts.append(True)
             self.likelihoods.append(0)
 
+    def build_distance_list(self):
+        self.all_distances = []
+        for m in self.matrices:
+            for r in m:
+                for x in r:
+                    self.all_distances.append(x)
+        self.all_distances = list(set(self.all_distances))
+
     def update_lh_cache(self, w_or_b):
 
         if w_or_b == "within":
@@ -87,14 +96,13 @@ class Clusterer:
             a, b = (0.0 - self.between_mu) / self.between_sigma, (1.0 - self.between_mu) / self.between_sigma
             dist = scipy.stats.truncnorm(a, b, loc=self.between_mu,scale=self.between_sigma)
 
-        distances = [i/100 for i in range(0,101)]
-        lhs = dist.pdf(distances)
+        lhs = dist.pdf(self.all_distances)
         lhs = [safety_log(l) for l in lhs]
 
         if w_or_b == "within":
-            self.w_lh_cache = dict(zip(distances, lhs))
+            self.w_lh_cache = dict(zip(self.all_distances, lhs))
         elif w_or_b == "between":
-            self.b_lh_cache = dict(zip(distances, lhs))
+            self.b_lh_cache = dict(zip(self.all_distances, lhs))
 
     def find_MAP(self, iterations=1000):
         """Attempt to find the partition and parameter values which
@@ -559,11 +567,10 @@ class BetaClusterer(Clusterer):
         elif w_or_b == "between":
             dist = scipy.stats.beta(self.between_mu,self.between_sigma)
 
-        distances = [i/100 for i in range(0,101)]
-        lhs = dist.pdf(distances)
+        lhs = dist.pdf(self.all_distances)
         lhs = [safety_log(l) for l in lhs]
 
         if w_or_b == "within":
-            self.w_lh_cache = dict(zip(distances, lhs))
+            self.w_lh_cache = dict(zip(self.all_distances, lhs))
         elif w_or_b == "between":
-            self.b_lh_cache = dict(zip(distances, lhs))
+            self.b_lh_cache = dict(zip(self.all_distances, lhs))
