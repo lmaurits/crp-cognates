@@ -471,12 +471,11 @@ class Clusterer:
             return False
         random.shuffle(part)
         old_part_length = len(part)
-        partbit = part.pop()
-        old_set_length = len(partbit)
+        partbit = ["Foo",]
         while len(partbit) == 1:
-            part.append(partbit)
-            random.shuffle(part)
-            partbit = part.pop()
+            partbit = random.sample(part,1)[0]
+        part.remove(partbit)
+        old_set_length = len(partbit)
         if len(partbit) == 2:
             part.append([partbit[0],])
             part.append([partbit[1],])
