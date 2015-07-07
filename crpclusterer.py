@@ -377,7 +377,7 @@ class Clusterer:
                     mult = random.normalvariate(1.0,0.05)
                 self.between_sigma *= mult
             else:
-                self.operator = "sample_sigma"
+                self.operator = "sample_b_sigma"
                 self.between_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
             self.update_lh_cache("between")
         else:
