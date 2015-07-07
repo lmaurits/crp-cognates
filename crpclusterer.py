@@ -496,11 +496,20 @@ class Clusterer:
             # If the partition is just one big set then we can't do anything!
             return False
         bit_a, bit_b = random.sample(part,2)
+        if len(bit_a) == 1:
+            bit_a_single = True
+        else:
+            random.shuffle(bit_a)
+            bit_a_single = False
         bit_b.append(bit_a.pop())
         if not bit_a:
             part.remove(bit_a)
         self.dirty_theta = True
-        self.proposal_ratio = 1.0
+        xp_to_x = 1/(len(bit_b)*Choose(len(part),2))   # reverse with reassign
+        if bit_a_single:
+            xp_to_x += 1/(len(part)*len(bit_b)) # reverse with pluck
+        x_to_xp = 1/(len(bit_a)*Choose(len(part),2))   # forward with reassign
+        self.proposal_ratio = xp_to_x / x_to_xp
         return True
 
     def move_pluck(self, part):
