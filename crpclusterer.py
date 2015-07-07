@@ -329,6 +329,7 @@ class Clusterer:
         roll = random.random()
         if roll < 0.1666:
             self.operator = "scale_theta"
+            return
             while mult < 0:
                 mult = random.normalvariate(1.0,0.1)
             self.theta *= mult
