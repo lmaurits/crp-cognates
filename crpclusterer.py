@@ -329,11 +329,14 @@ class Clusterer:
         # Choose a parameter and scale it
         roll = random.random()
         if roll < 0.1666:
-            self.operator = "scale_theta"
-            return
-            while mult < 0:
-                mult = random.normalvariate(1.0,0.1)
-            self.theta *= mult
+            if random.random() < 0.5:
+                self.operator = "scale_theta"
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.1)
+                self.theta *= mult
+            else:
+                self.operator = "sample_theta"
+                self.theta = scipy.stats.gamma(1.2128, loc=0.0, scale=1.0315).rvs(1)[0]
             self.dirty_theta = True
             # Return now so that dirty_parts is not touched
             return
