@@ -163,7 +163,6 @@ class Clusterer:
         self.draw_proposal()
         old_poster = self.posterior
         new_poster = self.compute_posterior()
-        #print(old_poster, new_poster)
         try:
             poster_ratio = math.exp(new_poster - old_poster)
         except OverflowError:
@@ -172,7 +171,6 @@ class Clusterer:
             else:
                 poster_ratio = 0.0
         acceptance_prob = poster_ratio * self.proposal_ratio
-        #print(poster_ratio, self.proposal_ratio, acceptance_prob)
         if acceptance_prob >= 1.0 or random.random() <= acceptance_prob:
             # Accept
             self.posterior = new_poster
@@ -325,8 +323,6 @@ class Clusterer:
 
         # This move is completely symmetric so:
         self.proposal_ratio *= 1.0
-
-        # Choose a scaling value
         mult = - 1.0
 
         # Choose a parameter and scale it
