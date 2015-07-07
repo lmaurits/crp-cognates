@@ -438,6 +438,7 @@ class Clusterer:
             self.between_sigma /= mult
         self.update_lh_cache("within")
         self.update_lh_cache("between")
+        self.dirty_parts = [True for p in self.partitions]
 
         # Split or merge some partitions
         n = random.randint(1,len(self.partitions))
