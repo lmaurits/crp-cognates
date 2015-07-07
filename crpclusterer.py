@@ -40,6 +40,9 @@ class Clusterer:
         self.update_lh_cache("within")
         self.update_lh_cache("between")
 
+        self.op_norms = {}
+        self.op_hits = {}
+
         # Controls
         self.verbose = True
         self.change_partitions = True
@@ -177,9 +180,11 @@ class Clusterer:
         if acceptance_prob >= 1.0 or random.random() <= acceptance_prob:
             # Accept
             self.posterior = new_poster
+            self.op_hits[self.operator] = self.op_hits.get(self.operator, 0) + 1
         else:
             # Reject
             self.revert()
+        self.op_norms[self.operator] = self.op_norms.get(self.operator, 0) + 1
 
     def compute_posterior(self):
         return self.compute_prior() + self.compute_lh()
@@ -319,6 +324,7 @@ class Clusterer:
         # Choose a parameter and scale it
         roll = random.random()
         if roll < 0.1666:
+            self.operator = "scale_theta"
             while mult < 0:
                 mult = random.normalvariate(1.0,0.3)
             self.theta *= mult
@@ -327,37 +333,46 @@ class Clusterer:
             return
         elif 0.1666 <= roll < 0.3333:
             if random.random() < 0.5:
+                self.operator = "scale_w_mu"
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.10)
                 self.within_mu *= mult
             else:
+                self.operator = "sample_w_mu"
                 self.within_mu = random.random()
             self.update_lh_cache("within")
         elif 0.3333 <= roll < 0.5:
             if random.random() < 0.5:
+                self.operator = "scale_w_sigma"
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.02)
                 self.within_sigma *= mult
             else:
+                self.operator = "sample_w_sigma"
                 self.within_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
             self.update_lh_cache("within")
         elif 0.5 <= roll < 0.6666:
             if random.random() < 0.5:
+                self.operator = "scale_b_mu"
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.10)
                 self.between_mu *= mult
             else:
+                self.operator = "sample_b_mu"
                 self.between_mu = random.random()
             self.update_lh_cache("between")
         elif 0.6666 <= roll < 0.8333:
             if random.random() < 0.5:
+                self.operator = "scale_b_sigma"
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.05)
                 self.between_sigma *= mult
             else:
+                self.operator = "sample_sigma"
                 self.between_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
             self.update_lh_cache("between")
         else:
+            self.operator = "multi_scale"
             while mult < 0:
                 mult = random.normalvariate(1.0,0.05)
             if mult > 1:
@@ -428,6 +443,7 @@ class Clusterer:
 
     def move_merge(self, part):
         """Choose two sets of the partition at random and merge them."""
+        self.operator = "merge"
         random.shuffle(part)
         old_len = len(part)
         if len(part) == 1:
@@ -444,6 +460,7 @@ class Clusterer:
 
     def move_split(self, part):
         """Choose a set of the partition at random and split it in two."""
+        self.operator = "split"
         if all([len(bit) == 1 for bit in part]):
             # If all sets of the partition are singletons there's nothing to split!
             return False
@@ -470,6 +487,7 @@ class Clusterer:
     def move_reassign(self, part):
         """Choose a random element of a random set and move it to a new
         random set."""
+        self.operator = "reassign"
         if len(part) == 1:
             # If the partition is just one big set then we can't do anything!
             return False
@@ -484,6 +502,7 @@ class Clusterer:
     def move_swap(self, part):
         """Choose two random sets and swap a random element of one with a
         random element of the other."""
+        self.operator = "swap"
         if len(part) == 1:
             # We need at least two partitions
             return False
@@ -500,6 +519,7 @@ class Clusterer:
     def move_shuffle(self, part):
         """Randomly shuffle elements among the sets of the partition, while
         keeping the number and sizes of partitions constant."""
+        self.operator = "shuffle"
         n = sum([len(bit) for bit in part])
         words = list(range(0,n))
         random.shuffle(words)
@@ -517,6 +537,7 @@ class Clusterer:
     def move_smart(self, part, mat):
         """For MAP searches: attempt a very smart move, which uses the
         distance matrices to make optimal choices."""
+        self.operator = "smart"
         if len(part) == 1:
             # Given only a single grouping, find the word
             # with the greatest mean distance to other words in the group
