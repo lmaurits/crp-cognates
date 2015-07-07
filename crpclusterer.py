@@ -121,7 +121,7 @@ class Clusterer:
             self.snapshot()
             self.dirty_theta = False
             self.dirty_parts = [False for part in self.partitions]
-            self.draw_proposal()
+            self.draw_proposal(map_mode=True)
             new_poster = self.compute_posterior()
             if new_poster > self.posterior:
                 # Accept
@@ -292,7 +292,7 @@ class Clusterer:
         self.between_mu = self.snapped_between_mu
         self.between_sigma = self.snapped_between_sigma
 
-    def draw_proposal(self):
+    def draw_proposal(self, map_mode=False):
         """Make a random change to the state space."""
         self.proposal_ratio = 1.0
         if self.change_params and self.change_partitions:
@@ -305,7 +305,10 @@ class Clusterer:
                 #self.move_change_partition()
                 self.move_change_partition()
             else:
-                self.move_change_many_things()
+                if map_mode:
+                    self.move_smart()
+                else:
+                    self.move_change_many_things()
         elif self.change_params:
             self.move_change_params()
         elif self.change_partitions:
@@ -534,10 +537,13 @@ class Clusterer:
         self.proposal_ratio = 1.0
         return True
 
-    def move_smart(self, part, mat):
+    def move_smart(self):
         """For MAP searches: attempt a very smart move, which uses the
         distance matrices to make optimal choices."""
         self.operator = "smart"
+        index = random.randint(0,len(self.partitions)-1)
+        part = self.partitions[index]
+        mat = self.matrices[index]
         if len(part) == 1:
             # Given only a single grouping, find the word
             # with the greatest mean distance to other words in the group
