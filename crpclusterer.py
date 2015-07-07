@@ -409,6 +409,7 @@ class Clusterer:
             if random.random() < 0.75:
                 operator = random.sample(
                         (   self.move_reassign,
+                            self.move_pluck,
                             self.move_swap,
                             self.move_shuffle),
                         1)[0]
@@ -501,6 +502,30 @@ class Clusterer:
             part.remove(bit_a)
         self.dirty_theta = True
         self.proposal_ratio = 1.0
+        return True
+
+    def move_pluck(self, part):
+        """Choose a random element of a random set and put it into a new set all of its own."""
+        self.operator = "pluck"
+        if all([len(bit) == 1 for bit in part]):
+            # No point if partition is all singletons
+            return False
+        bit = ["Foo",]
+        while len(bit) == 1:
+            bit = random.sample(part,1)[0]
+        lenbit = len(bit)
+        x = random.sample(bit, 1)[0]
+        bit.remove(x)
+        part.append([x,])
+        self.dirty_theta = True
+        xp_to_x = 1/Choose(len(part),2)   # reverse with reassign
+        xp_to_x += 1/Choose(len(part),2)  # reverse with merge
+        x_to_xp = 1/(len(part)*lenbit)    # forward with pluck
+        if lenbit == 2:
+            x_to_xp += 1/Choose(len(part),2)    # forward with split
+        else:
+            x_to_xp += 1/(Choose(len(part),2)*lenbit)    # forward with split
+        self.proposal_ratio = xp_to_x / x_to_xp
         return True
 
     def move_swap(self, part):
