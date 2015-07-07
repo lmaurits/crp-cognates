@@ -443,9 +443,8 @@ class Clusterer:
         # Split or merge some partitions
         n = random.randint(1,len(self.partitions))
         indices = random.sample(range(0,len(self.partitions)),n)
-        for index in indices:
-            part = self.partitions[index]
-            self.dirty_parts[index] = operator(part)
+        for part in self.partitions:
+            operator(part)
 
     def move_merge(self, part):
         """Choose two sets of the partition at random and merge them."""
