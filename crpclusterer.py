@@ -161,10 +161,6 @@ class Clusterer:
         self.dirty_theta = False
         self.dirty_parts = [False for part in self.partitions]
         self.draw_proposal()
-        # Just fail if we draw an absurdly high theta
-        if self.theta > 100.0:
-            self.revert()
-            return
         old_poster = self.posterior
         new_poster = self.compute_posterior()
         #print(old_poster, new_poster)
@@ -192,8 +188,17 @@ class Clusterer:
     def compute_prior(self):
         """Compute log prior on model parameters."""
 
-        prior = 0
+        # Domain constraints
+        if not (
+                (0.5 <= self.theta <= 1.5) and
+                (0.0 <= self.within_mu <= 1.0) and
+                (0.0 <= self.between_mu <= 1.0)
+                ):
+            prior = safety_log(0.0)
+            self.prior = prior
+            return prior
 
+        prior = 0
         # Prior on theta
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
