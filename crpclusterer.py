@@ -201,20 +201,20 @@ class Clusterer:
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
         # theta, but not wanting *too* low of a theta.
-        if self.theta > 3.0:
-            p = 0.0
-        else:
-            p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
-        prior += safety_log(p)
+        #if self.theta > 3.0:
+        #    p = 0.0
+        #else:
+        #    p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
+        #prior += safety_log(p)
 
         # Prior on within_mu
         # (Beta distribution prior)
-        dist = scipy.stats.beta(2, 5)
-        prior += safety_log(dist.pdf(self.within_mu))
+#        dist = scipy.stats.beta(2, 5)
+#        prior += safety_log(dist.pdf(self.within_mu))
 
         # Prior on within_sigma
         # (exponential prior)
-        prior += safety_log(1.5*math.exp(-1*1.5*self.within_sigma))
+        prior += safety_log(3.0*math.exp(-1*3.0*self.within_sigma))
 
         # Prior on between_mu
         # (Beta distribution prior)
@@ -223,7 +223,7 @@ class Clusterer:
 
         # Prior on between_sigma
         # (exponential prior)
-        prior += safety_log(1.5*math.exp(-1*1.5*self.between_sigma))
+        prior += safety_log(3.0*math.exp(-1*3.0*self.between_sigma))
         self.prior = prior
         return prior
 
