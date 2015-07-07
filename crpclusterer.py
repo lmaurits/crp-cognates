@@ -81,9 +81,11 @@ class Clusterer:
     def update_lh_cache(self, w_or_b):
 
         if w_or_b == "within":
-            dist = scipy.stats.norm(loc=self.within_mu,scale=self.within_sigma)
+            a, b = (0.0 - self.within_mu) / self.within_sigma, (1.0 - self.within_mu) / self.within_sigma
+            dist = scipy.stats.truncnorm(a, b,loc=self.within_mu,scale=self.within_sigma)
         elif w_or_b == "between":
-            dist = scipy.stats.norm(loc=self.between_mu,scale=self.between_sigma)
+            a, b = (0.0 - self.between_mu) / self.between_sigma, (1.0 - self.between_mu) / self.between_sigma
+            dist = scipy.stats.truncnorm(a, b, loc=self.between_mu,scale=self.between_sigma)
 
         distances = [i/100 for i in range(0,101)]
         lhs = dist.pdf(distances)

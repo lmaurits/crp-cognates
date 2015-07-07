@@ -16,12 +16,14 @@ class CrpSimulator:
 
     def draw_within(self):
         if not self.within_distances:
-            self.within_distances = list(scipy.stats.norm(self.w_mu, self.w_sigma).rvs(1000))
+            a, b = (0.0 - self.w_mu) / self.w_sigma, (1.0 - self.w_mu) / self.w_sigma
+            self.within_distances = list(scipy.stats.truncnorm(a,b,self.w_mu, self.w_sigma).rvs(1000))
         return self.within_distances.pop()
 
     def draw_between(self):
         if not self.between_distances:
-            self.between_distances = list(scipy.stats.norm(self.b_mu, self.b_sigma).rvs(1000))
+            a, b = (0.0 - self.b_mu) / self.b_sigma, (1.0 - self.b_mu) / self.b_sigma
+            self.between_distances = list(scipy.stats.truncnorm(a,b,self.b_mu, self.b_sigma).rvs(1000))
         return self.between_distances.pop()
 
     def simulate_datapoint(self, n):
