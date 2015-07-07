@@ -123,15 +123,11 @@ class Clusterer:
             if new_poster > self.posterior:
                 # Accept
                 self.posterior = new_poster
-                self.failed_attempts = 0
                 if self.verbose:
                     self.instrument()
             else:
                 # Reject
                 self.revert()
-                self.failed_attempts +=1
-                if self.failed_attempts == 100:
-                    break
             if hookfunc:
                 hookfunc()
 
