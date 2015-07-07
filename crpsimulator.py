@@ -68,9 +68,9 @@ class CrpSimulator:
                 matrix[x][y] = 0.0
             else:
                 if any([x in subset and y in subset for subset in part]):
-                    matrix[x][y] = max(0.0, min(1.0,round(self.draw_within(),2)))
+                    matrix[x][y] = max(0.0, min(1.0,round(self.draw_within(),3)))
                 else:
-                    matrix[x][y] = max(0.0, min(1.0,round(self.draw_between(),2)))
+                    matrix[x][y] = max(0.0, min(1.0,round(self.draw_between(),3)))
                 matrix[y][x] = matrix[x][y]
         return matrix
 
