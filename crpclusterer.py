@@ -318,32 +318,64 @@ class Clusterer:
 
         # Choose a parameter and scale it
         roll = random.random()
-        if roll < 0.05:
+        if roll < 0.1666:
             while mult < 0:
                 mult = random.normalvariate(1.0,0.3)
             self.theta *= mult
             self.dirty_theta = True
             # Return now so that dirty_parts is not touched
             return
-        elif 0.05 <= roll < 0.2875:
-            while mult < 0:
-                mult = random.normalvariate(1.0,0.002)
-            self.within_mu *= mult
+        elif 0.1666 <= roll < 0.3333:
+            if random.random() < 0.5:
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.10)
+                self.within_mu *= mult
+            else:
+                self.within_mu = random.random()
             self.update_lh_cache("within")
-        elif 0.2875 <= roll < 0.525:
-            while mult < 0:
-                mult = random.normalvariate(1.0,0.002)
-            self.within_sigma *= mult
+        elif 0.3333 <= roll < 0.5:
+            if random.random() < 0.5:
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.02)
+                self.within_sigma *= mult
+            else:
+                self.within_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
             self.update_lh_cache("within")
-        elif 0.525 <= roll < 0.7625:
-            while mult < 0:
-                mult = random.normalvariate(1.0,0.002)
-            self.between_mu *= mult
+        elif 0.5 <= roll < 0.6666:
+            if random.random() < 0.5:
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.10)
+                self.between_mu *= mult
+            else:
+                self.between_mu = random.random()
+            self.update_lh_cache("between")
+        elif 0.6666 <= roll < 0.8333:
+            if random.random() < 0.5:
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.05)
+                self.between_sigma *= mult
+            else:
+                self.between_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
             self.update_lh_cache("between")
         else:
             while mult < 0:
-                mult = random.normalvariate(1.0,0.002)
-            self.between_sigma *= mult
+                mult = random.normalvariate(1.0,0.05)
+            if mult > 1:
+                bigger = mult
+                smaller = 2 - mult
+            else:
+                smaller = mult
+                bigger = 2 - mult
+            # Scale theta in a random direction
+            # Push the means in the sensible directions
+            # Make the sigmas larger to make the move more favourable
+            #self.theta *= mult
+            #self.dirty_theta = True
+            self.within_mu *= smaller
+            self.within_sigma *= bigger
+            self.between_mu *= bigger
+            self.between_sigma *= bigger
+            self.update_lh_cache("within")
             self.update_lh_cache("between")
         self.dirty_parts = [True for part in self.partitions]
 
