@@ -104,7 +104,7 @@ class Clusterer:
         elif w_or_b == "between":
             self.b_lh_cache = dict(zip(self.all_distances, lhs))
 
-    def find_MAP(self, iterations=1000):
+    def find_MAP(self, iterations=1000, hookfunc=None):
         """Attempt to find the partition and parameter values which
         maximimise the posterior probability of the data.  Runs for the
         specified number of iterations, or terminates after 100 consecutive
@@ -132,6 +132,8 @@ class Clusterer:
                 self.failed_attempts +=1
                 if self.failed_attempts == 100:
                     break
+            if hookfunc:
+                hookfunc()
 
     def sample_posterior(self, iterations, burnin, lag, filename=None):
         self.posterior = self.compute_posterior()
