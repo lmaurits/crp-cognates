@@ -187,16 +187,16 @@ class Clusterer:
         """Compute log prior on model parameters."""
 
         # Domain constraints
-#        if not (
-#                (0.5 <= self.theta <= 1.5) and
-#                (0.0 <= self.within_mu <= 1.0) and
-#                (0.0 <= self.between_mu <= 1.0)
-#                ):
-#            prior = safety_log(0.0)
-#            self.prior = prior
-#            return prior
+        if not (
+                (0.0 <= self.theta <= 1.0) and
+                (0.0 <= self.within_mu <= 1.0) and
+                (0.0 <= self.between_mu <= 1.0)
+                ):
+            prior = safety_log(0.0)
+            self.prior = prior
+            return prior
 
-#        prior = 0
+        prior = 0
         # Prior on theta
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
