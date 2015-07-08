@@ -113,7 +113,7 @@ class Clusterer:
         specified number of iterations, or terminates after 100 consecutive
         failures to find an improved posterior."""
 
-        self.posterior = self.compute_posterior()
+        max_poster = self.compute_posterior()
         self.failed_attempts = 0
         if self.verbose:
             print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
@@ -123,9 +123,9 @@ class Clusterer:
             self.dirty_parts = [False for part in self.partitions]
             self.draw_proposal(map_mode=True)
             new_poster = self.compute_posterior()
-            if new_poster > self.posterior:
+            if new_poster > max_posterior:
                 # Accept
-                self.posterior = new_poster
+                max_poster = new_poster
                 if self.verbose:
                     self.instrument()
             else:
@@ -135,7 +135,7 @@ class Clusterer:
                 hookfunc()
 
     def sample_posterior(self, iterations, burnin, lag, filename=None):
-        self.posterior = self.compute_posterior()
+        self.compute_posterior()
         if self.verbose:
             print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
         for i in range(0, burnin):
@@ -160,8 +160,8 @@ class Clusterer:
         self.snapshot()
         self.dirty_theta = False
         self.dirty_parts = [False for part in self.partitions]
-        self.draw_proposal()
         old_poster = self.posterior
+        self.draw_proposal()
         new_poster = self.compute_posterior()
         try:
             poster_ratio = math.exp(new_poster - old_poster)
@@ -173,7 +173,6 @@ class Clusterer:
         acceptance_prob = poster_ratio * self.proposal_ratio
         if acceptance_prob >= 1.0 or random.random() <= acceptance_prob:
             # Accept
-            self.posterior = new_poster
             self.op_hits[self.operator] = self.op_hits.get(self.operator, 0) + 1
         else:
             # Reject
@@ -181,7 +180,8 @@ class Clusterer:
         self.op_norms[self.operator] = self.op_norms.get(self.operator, 0) + 1
 
     def compute_posterior(self):
-        return self.compute_prior() + self.compute_lh()
+        self.posterior = self.compute_prior() + self.compute_lh()
+        return self.posterior
 
     def compute_prior(self):
         """Compute log prior on model parameters."""
@@ -271,6 +271,9 @@ class Clusterer:
 
     def snapshot(self):
         """Backup everything which is modified by drawing a proposal."""
+        self.snapped_prior = self.prior
+        self.snapped_lh = self.lh
+        self.snapped_posterior = self.posterior
         self.snapped_partitions = copy.deepcopy(self.partitions)
         self.snapped_crp_likelihood = self.crp_likelihood
         self.snapped_likelihoods = self.likelihoods[:]
@@ -285,6 +288,9 @@ class Clusterer:
     def revert(self):
         """Restore from backup everything which is modified by drawing a
         proposal."""
+        self.prior = self.snapped_prior
+        self.lh = self.snapped_lh
+        self.posterior = self.snapped_posterior
         self.partitions = self.snapped_partitions
         self.crp_likelihood = self.snapped_crp_likelihood
         self.likelihoods = self.snapped_likelihoods
