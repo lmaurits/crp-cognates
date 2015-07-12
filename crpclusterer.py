@@ -38,6 +38,13 @@ class Clusterer:
         self.between_mu = 0.75
         self.between_sigma = 0.1
 
+        # Priors
+        self.theta_prior = scipy.stats.gamma(1.2128, loc=0.0, scale=1.0315)
+        self.within_mu_prior = scipy.stats.beta(2,5)
+        self.within_sigma_prior =  scipy.stats.expon(scale=1/12.0)
+        self.between_mu_prior = scipy.stats.beta(5,2)
+        self.between_sigma_prior =  scipy.stats.expon(scale=1/12.0)
+
         # Caching stuff
         self.dirty_theta = True
         self.dirty_parts = []
@@ -229,26 +236,23 @@ class Clusterer:
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
         # theta, but not wanting *too* low of a theta.
-        p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
-        prior += safety_log(p)
+        prior += safety_log(self.theta_prior.pdf(self.theta))
 
         # Prior on within_mu
         # (Beta distribution prior)
-#        dist = scipy.stats.beta(2, 5)
-#        prior += safety_log(dist.pdf(self.within_mu))
+#        prior += safety_log(self.within_mu_prior.pdf(self.within_mu))
 
         # Prior on within_sigma
         # (exponential prior)
-        prior += safety_log(12.0*math.exp(-1*12.0*self.within_sigma))
+        prior += safety_log(self.within_sigma_prior.pdf(self.within_sigma))
 
         # Prior on between_mu
         # (Beta distribution prior)
-#        dist = scipy.stats.beta(5, 2)
-#        prior += safety_log(dist.pdf(self.between_mu))
+#        prior += safety_log(self.between_mu_prior.pdf(self.between_mu))
 
         # Prior on between_sigma
         # (exponential prior)
-        prior += safety_log(12.0*math.exp(-1*12.0*self.between_sigma))
+        prior += safety_log(self.between_sigma_prior.pdf(self.between_sigma))
 
         self.prior = prior
         return prior
