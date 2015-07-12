@@ -188,24 +188,40 @@ class Clusterer:
 
         # Domain constraints
         if not (
-                (0.0 <= self.theta <= 1.0) and
+           # No run-away params
+                (0.0 <= self.theta <= 4.0) and
                 (0.0 <= self.within_mu <= 1.0) and
                 (0.0 <= self.between_mu <= 1.0)
-                ):
-            prior = safety_log(0.0)
-            self.prior = prior
-            return prior
+            ) or (
+           # Don't let *everything* be cognate to everything else...
+               all([len(p)==1 for p in self.partitions])
+            ) or (
+           # ...but insist on at least one cognate
+               not any([any([len(s)>1 for s in p]) for p in self.partitions])
+            ):
+           prior = safety_log(0.0)
+           self.prior = prior
+           return prior
 
         prior = 0
+
+        # Prior on number of cognate classes
+        no_cognate_classes = sum([len(p) for p in self.partitions])
+        min_classes = len(self.partitions)
+        max_classes = sum([len(m) for m in self.matrices])
+        class_percentile = (no_cognate_classes - min_classes) / (max_classes - min_classes)
+        mu = 0.264
+        sigma = 0.1337
+        a, b = (0.0 - mu) / sigma, (1.0 - mu) / sigma
+        dist = scipy.stats.truncnorm(a, b,loc=mu,scale=sigma)
+        prior += safety_log(dist.pdf(class_percentile))
+
         # Prior on theta
         # A fairly arbitrary Gamma prior which is basically chosen
         # to trade off between gernally preferring lower theta over higher
         # theta, but not wanting *too* low of a theta.
-        #if self.theta > 3.0:
-        #    p = 0.0
-        #else:
-        #    p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
-        #prior += safety_log(p)
+        p = scipy.stats.gamma.pdf(self.theta, 1.2128, loc=0.0, scale=1.0315)
+        prior += safety_log(p)
 
         # Prior on within_mu
         # (Beta distribution prior)
@@ -214,7 +230,7 @@ class Clusterer:
 
         # Prior on within_sigma
         # (exponential prior)
-#        prior += safety_log(3.0*math.exp(-1*3.0*self.within_sigma))
+        prior += safety_log(12.0*math.exp(-1*12.0*self.within_sigma))
 
         # Prior on between_mu
         # (Beta distribution prior)
@@ -223,8 +239,8 @@ class Clusterer:
 
         # Prior on between_sigma
         # (exponential prior)
-#        prior += safety_log(3.0*math.exp(-1*3.0*self.between_sigma))
-        prior = safety_log(1.0)
+        prior += safety_log(12.0*math.exp(-1*12.0*self.between_sigma))
+
         self.prior = prior
         return prior
 
