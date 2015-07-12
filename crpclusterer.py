@@ -434,27 +434,32 @@ class Clusterer:
             self.update_lh_cache("between")
         self.dirty_parts = [True for part in self.partitions]
 
+    def sample_partition_operator(self):
+        roll = random.random()
+        if roll < 0.75:
+            return random.sample(
+                    (   self.move_reassign,
+                        self.move_pluck,
+                        self.move_swap,
+                        self.move_shuffle),
+                    1)[0]
+        elif roll < 0.95:
+            return random.sample(
+                    (   self.move_merge,
+                        self.move_split),
+                    1)[0]
+        else:
+            return self.move_randomise
+
     def move_change_partition(self):
         """Sample one of the partition changing moves at random and apply
         it."""
 
         moved = False
         while not moved:
+            operator = self.sample_partition_operator()
             index = random.randint(0,len(self.partitions)-1)
             part = self.partitions[index]
-            if random.random() < 0.75:
-                operator = random.sample(
-                        (   self.move_reassign,
-                            self.move_pluck,
-                            self.move_swap,
-                            self.move_shuffle,
-                            self.move_randomise),
-                        1)[0]
-            else:
-                operator = random.sample(
-                        (   self.move_merge,
-                            self.move_split),
-                        1)[0]
             moved = operator(part)
         self.dirty_parts[index] = True
 
@@ -477,11 +482,19 @@ class Clusterer:
         self.update_lh_cache("between")
         self.dirty_parts = [True for p in self.partitions]
 
-        # Split or merge some partitions
-        n = random.randint(1,len(self.partitions))
+        # Randomly operate on some partitions
+        n = random.randint(int(len(self.partitions)*0.25),len(self.partitions))
         indices = random.sample(range(0,len(self.partitions)),n)
-        for part in self.partitions:
-            operator(part)
+        if random.random() < 0.5:
+            # Apply the same operator to all the parts
+            operator = self.sample_partition_operator()
+            for part in self.partitions:
+                operator(part)
+        else:
+            # Apply a different operator to each part
+            for part in self.partitions:
+                operator = self.sample_partition_operator()
+                operator(part)
 
     def move_merge(self, part):
         """Choose two sets of the partition at random and merge them."""
