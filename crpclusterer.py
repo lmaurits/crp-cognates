@@ -15,6 +15,15 @@ def safety_log(x):
     except ValueError:
         return -999999.0
 
+def stirling2(n,k):
+    """Returns the stirling number Stirl2(n,k) of the second kind using recursion."""
+    if k <= 1 or k == n:
+        return 1
+    elif k > n or n <= 0:
+        return 0
+    else:
+        return stirling2(n-1, k-1) + k * stirling2(n-1, k)
+
 class Clusterer:
 
     def __init__(self, matrices):
@@ -438,7 +447,8 @@ class Clusterer:
                         (   self.move_reassign,
                             self.move_pluck,
                             self.move_swap,
-                            self.move_shuffle),
+                            self.move_shuffle,
+                            self.move_randomise),
                         1)[0]
             else:
                 operator = random.sample(
@@ -513,6 +523,37 @@ class Clusterer:
             part.append(partbit[pivot:])
         self.dirty_theta = True
         self.proposal_ratio *= Choose(len(part),2) / ((1/old_part_length)*Choose(old_set_length,len(part[-2])))
+        return True
+
+    def move_randomise(self, part):
+        self.operator = "randomise"
+        self.proposal_ratio = 1.0
+        # Sample a partition uniformly at random
+        # Sample size of partition first
+        dist = []
+        n = sum([len(p) for p in part])
+        for k in range(1,n):
+            dist.append(stirling2(n, k))
+        dist = [d/sum(dist) for d in dist]
+        roll = random.random()
+        cumul = 0
+        for s, p in enumerate(dist):
+            cumul += p
+            if cumul >= roll:
+                break
+        size = s+1
+        # Empty the partition
+        while part:
+            part.pop()
+        # Each set of the partition requires at least 1 word...
+        words = list(range(0,n))
+        random.shuffle(words)
+        for i in range(0,size):
+            part.append([words.pop(),])
+        # The remaining words can be assigned at random
+        for w in words:
+            index = random.randint(0,size-1)
+            part[index].append(w)
         return True
 
     def move_reassign(self, part):
