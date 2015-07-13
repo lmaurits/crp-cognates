@@ -430,26 +430,49 @@ class Clusterer:
                 self.proposal_ratio *= self.between_sigma_prior.pdf(old) / self.between_sigma_prior.pdf(self.between_sigma)
             self.update_lh_cache("between")
         else:
-            self.operator = "multi_scale"
-            while mult < 0:
-                mult = random.normalvariate(1.0,0.05)
-            if mult > 1:
-                bigger = mult
-                smaller = 2 - mult
+            if random.random() < 0.5:
+                self.operator = "multi_scale"
+                while mult < 0:
+                    mult = random.normalvariate(1.0,0.05)
+                # Scale theta and means in a random direction
+                # Push the means in the sensible directions
+                # Make the sigmas larger to make the move more favourable
+                self.theta *= mult
+                self.dirty_theta = True
+                self.within_mu *= random.normalvariate(1.0, 0.05)
+                self.between_mu *= random.normalvariate(1.0, 0.05)
+                if mult > 1:
+                    # We want to encourage splitting, so there
+                    # will be more between distances
+                    self.within_sigma /= mult
+                    self.between_sigma *= mult
+                else:
+                    # We want to encourage lumping, so there
+                    # will be more within distances
+                    self.within_sigma *= mult
+                    self.between_sigma /= mult
+                self.update_lh_cache("within")
+                self.update_lh_cache("between")
             else:
-                smaller = mult
-                bigger = 2 - mult
-            # Scale theta in a random direction
-            # Push the means in the sensible directions
-            # Make the sigmas larger to make the move more favourable
-            #self.theta *= mult
-            #self.dirty_theta = True
-            self.within_mu *= smaller
-            self.within_sigma *= bigger
-            self.between_mu *= bigger
-            self.between_sigma *= bigger
-            self.update_lh_cache("within")
-            self.update_lh_cache("between")
+                self.operator = "multi_sample"
+                old = self.theta
+                self.theta = self.theta_prior.rvs(1)[0]
+                self.proposal_ratio *= self.theta_prior.pdf(old) / self.theta_prior.pdf(self.theta)
+                old = self.within_mu
+                self.within_mu = self.within_mu_prior.rvs(1)[0]
+                self.proposal_ratio *= self.within_mu_prior.pdf(old) / self.within_mu_prior.pdf(self.within_mu)
+                old = self.within_sigma
+                self.within_sigma = self.within_sigma_prior.rvs(1)[0]
+                self.proposal_ratio *= self.within_sigma_prior.pdf(old) / self.within_sigma_prior.pdf(self.within_sigma)
+                old = self.between_mu
+                self.between_mu = self.between_mu_prior.rvs(1)[0]
+                self.proposal_ratio *= self.between_mu_prior.pdf(old) / self.between_mu_prior.pdf(self.between_mu)
+                old = self.between_sigma
+                self.between_sigma = self.between_sigma_prior.rvs(1)[0]
+                self.proposal_ratio *= self.between_sigma_prior.pdf(old) / self.between_sigma_prior.pdf(self.between_sigma)
+                self.update_lh_cache("within")
+                self.update_lh_cache("between")
+
         self.dirty_parts = [True for part in self.partitions]
 
     def sample_partition_operator(self):
