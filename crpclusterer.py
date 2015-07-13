@@ -358,7 +358,6 @@ class Clusterer:
         Normally distributed random scale."""
 
         # This move is completely symmetric so:
-        self.proposal_ratio *= 1.0
         mult = - 1.0
 
         # Choose a parameter and scale it
@@ -366,54 +365,69 @@ class Clusterer:
         if roll < 0.1666:
             if random.random() < 0.5:
                 self.operator = "scale_theta"
+                self.proposal_ratio *= 1.0
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.1)
                 self.theta *= mult
             else:
                 self.operator = "sample_theta"
-                self.theta = scipy.stats.gamma(1.2128, loc=0.0, scale=1.0315).rvs(1)[0]
+                old = self.theta
+                self.theta = self.theta_prior.rvs(1)[0]
+                self.proposal_ratio *= self.theta_prior.pdf(old) / self.theta_prior.pdf(self.theta)
             self.dirty_theta = True
             # Return now so that dirty_parts is not touched
             return
         elif 0.1666 <= roll < 0.3333:
             if random.random() < 0.5:
                 self.operator = "scale_w_mu"
+                self.proposal_ratio *= 1.0
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.10)
                 self.within_mu *= mult
             else:
                 self.operator = "sample_w_mu"
-                self.within_mu = random.random()
+                old = self.within_mu
+                self.within_mu = self.within_mu_prior.rvs(1)[0]
+                self.proposal_ratio *= self.within_mu_prior.pdf(old) / self.within_mu_prior.pdf(self.within_mu)
             self.update_lh_cache("within")
         elif 0.3333 <= roll < 0.5:
             if random.random() < 0.5:
                 self.operator = "scale_w_sigma"
+                self.proposal_ratio *= 1.0
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.02)
                 self.within_sigma *= mult
             else:
                 self.operator = "sample_w_sigma"
-                self.within_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
+                old = self.within_sigma
+                self.within_sigma = self.within_sigma_prior.rvs(1)[0]
+                self.proposal_ratio *= self.within_sigma_prior.pdf(old) / self.within_sigma_prior.pdf(self.within_sigma)
             self.update_lh_cache("within")
         elif 0.5 <= roll < 0.6666:
             if random.random() < 0.5:
                 self.operator = "scale_b_mu"
+                self.proposal_ratio *= 1.0
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.10)
                 self.between_mu *= mult
             else:
                 self.operator = "sample_b_mu"
-                self.between_mu = random.random()
+                old = self.between_mu
+                self.between_mu = self.between_mu_prior.rvs(1)[0]
+                self.proposal_ratio *= self.between_mu_prior.pdf(old) / self.between_mu_prior.pdf(self.between_mu)
             self.update_lh_cache("between")
         elif 0.6666 <= roll < 0.8333:
             if random.random() < 0.5:
                 self.operator = "scale_b_sigma"
+                self.proposal_ratio *= 1.0
                 while mult < 0:
                     mult = random.normalvariate(1.0,0.05)
                 self.between_sigma *= mult
             else:
                 self.operator = "sample_b_sigma"
-                self.between_sigma =  scipy.stats.expon(scale=1/5.0).rvs(1)[0]
+                old = self.between_sigma
+                self.between_sigma = self.between_sigma_prior.rvs(1)[0]
+                self.proposal_ratio *= self.between_sigma_prior.pdf(old) / self.between_sigma_prior.pdf(self.between_sigma)
             self.update_lh_cache("between")
         else:
             self.operator = "multi_scale"
