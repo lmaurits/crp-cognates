@@ -524,16 +524,12 @@ class Clusterer:
 
     def sample_partition_operator(self):
         roll = random.random()
-        if roll < 0.75:
+        if roll < 1.00:
             return random.sample(
                     (   self.move_reassign,
-                        self.move_pluck,
                         self.move_swap,
-                        self.move_shuffle),
-                    1)[0]
-        elif roll < 0.95:
-            return random.sample(
-                    (   self.move_merge,
+                        self.move_shuffle,
+                        self.move_merge,
                         self.move_split),
                     1)[0]
         else:
