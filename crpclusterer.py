@@ -409,8 +409,12 @@ class Clusterer:
             if random.random() < 0.5:
                 self.operator = "scale_theta"
                 self.proposal_ratio *= 1.0
+                if random.random() < 0.1:
+                    sig = 0.01
+                else:
+                    sig = 0.1
                 while mult < 0:
-                    mult = random.normalvariate(1.0,0.1)
+                    mult = random.normalvariate(1.0,sig)
                 self.theta *= mult
             else:
                 self.operator = "sample_theta"
