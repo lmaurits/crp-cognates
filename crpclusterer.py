@@ -401,7 +401,6 @@ class Clusterer:
         """Choose one of the model parameters at random and multiply it by a
         Normally distributed random scale."""
 
-        # This move is completely symmetric so:
         mult = - 1.0
 
         # Choose a parameter and scale it
