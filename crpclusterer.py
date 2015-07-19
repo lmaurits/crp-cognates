@@ -284,7 +284,7 @@ class Clusterer:
 
         # Prior on within_mu
         # (Beta distribution prior)
-#        prior += safety_log(self.within_mu_prior.pdf(self.within_mu))
+        prior += safety_log(self.within_mu_prior.pdf(self.within_mu))
 
         # Prior on within_sigma
         # (exponential prior)
@@ -292,7 +292,7 @@ class Clusterer:
 
         # Prior on between_mu
         # (Beta distribution prior)
-#        prior += safety_log(self.between_mu_prior.pdf(self.between_mu))
+        prior += safety_log(self.between_mu_prior.pdf(self.between_mu))
 
         # Prior on between_sigma
         # (exponential prior)
