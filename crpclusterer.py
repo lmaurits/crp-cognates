@@ -594,7 +594,12 @@ class Clusterer:
         newset.extend(part.pop())
         part.append(newset)
         self.dirty_theta = True
-        self.proposal_ratio *= (1 / len(newset))*Choose(len(newset),mid_size) / Choose(old_len,2)
+        if len(newset) == 2:
+            xp_to_x = 1 / len([p for p in part if len(p) > 1]) # Reverse with split
+        else:
+            xp_to_x = 1 / len([p for p in part if len(p) > 1])*mid_size # Reverse with split
+        x_to_xp = 1 / Choose(old_len, 2) # forward with merge
+        self.proposal_ratio = xp_to_x / x_to_xp
         return True
 
     def move_split(self, part):
@@ -604,22 +609,29 @@ class Clusterer:
             # If all sets of the partition are singletons there's nothing to split!
             return False
         random.shuffle(part)
-        old_part_length = len(part)
+        original_nonsingleton_count = len([p for p in part if len(p) > 1])
         partbit = ["Foo",]
+        # Grab a non-singleton subset
         while len(partbit) == 1:
             partbit = random.sample(part,1)[0]
         part.remove(partbit)
-        old_set_length = len(partbit)
+        original_set_length = len(partbit)
+        # Split it up
+        random.shuffle(partbit)
         if len(partbit) == 2:
-            part.append([partbit[0],])
-            part.append([partbit[1],])
+            pivot = 1
+            x_to_xp = 1 / original_nonsingleton_count
+        elif random.random() < 0.5:
+            pivot = 1
+            x_to_xp = 0.5 / original_nonsingleton_count
         else:
-            random.shuffle(partbit)
-            pivot = random.randint(1,len(partbit)-2)
-            part.append(partbit[0:pivot])
-            part.append(partbit[pivot:])
+            pivot = random.randint(2,len(partbit)-1)
+            x_to_xp = 0.5 / original_nonsingleton_count*(len(partbit)-2)
+        part.append(partbit[0:pivot])
+        part.append(partbit[pivot:])
         self.dirty_theta = True
-        self.proposal_ratio *= Choose(len(part),2) / ((1/old_part_length)*Choose(old_set_length,len(part[-2])))
+        xp_to_x = 1 / Choose(len(part),2) # Reverse with merge
+        self.proposal_ratio *= xp_to_x / x_to_xp
         return True
 
     def move_randomise(self, part):
@@ -660,44 +672,18 @@ class Clusterer:
         if len(part) == 1:
             # If the partition is just one big set then we can't do anything!
             return False
-        bit_a, bit_b = random.sample(part,2)
-        if len(bit_a) == 1:
-            bit_a_single = True
-        else:
-            random.shuffle(bit_a)
-            bit_a_single = False
-        bit_b.append(bit_a.pop())
-        if not bit_a:
-            part.remove(bit_a)
-        self.dirty_theta = True
-        xp_to_x = 1/(len(bit_b)*Choose(len(part),2))   # reverse with reassign
-        if bit_a_single:
-            xp_to_x += 1/(len(part)*len(bit_b)) # reverse with pluck
-        x_to_xp = 1/(len(bit_a)*Choose(len(part),2))   # forward with reassign
-        self.proposal_ratio = xp_to_x / x_to_xp
-        return True
-
-    def move_pluck(self, part):
-        """Choose a random element of a random set and put it into a new set all of its own."""
-        self.operator = "pluck"
-        if all([len(bit) == 1 for bit in part]):
-            # No point if partition is all singletons
+        if len([s for s in part if len(s)>1]) < 2:
+            # If the partition is maximally separated then there's no point in doing anything.
             return False
-        bit = ["Foo",]
-        while len(bit) == 1:
-            bit = random.sample(part,1)[0]
-        lenbit = len(bit)
-        x = random.sample(bit, 1)[0]
-        bit.remove(x)
-        part.append([x,])
+        nonsingleton_count = len([p for p in part if len(p) > 1])
+        bit_a, bit_b = ["Foo,"], ["Bar",]
+        while len(bit_a) == 1 or len(bit_b) == 1:
+            bit_a, bit_b = random.sample(part,2)
+        random.shuffle(bit_a)
+        bit_b.append(bit_a.pop())
         self.dirty_theta = True
-        xp_to_x = 1/Choose(len(part),2)   # reverse with reassign
-        xp_to_x += 1/Choose(len(part),2)  # reverse with merge
-        x_to_xp = 1/(len(part)*lenbit)    # forward with pluck
-        if lenbit == 2:
-            x_to_xp += 1/Choose(len(part),2)    # forward with split
-        else:
-            x_to_xp += 1/(Choose(len(part),2)*lenbit)    # forward with split
+        xp_to_x = 1/len(bit_b)*nonsingleton_count**2  # reverse with reassign
+        x_to_xp = 1/len(bit_a)*nonsingleton_count**2  # forward with reassign
         self.proposal_ratio = xp_to_x / x_to_xp
         return True
 
