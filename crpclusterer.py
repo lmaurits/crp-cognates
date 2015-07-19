@@ -24,6 +24,39 @@ def stirling2(n,k):
     else:
         return stirling2(n-1, k-1) + k * stirling2(n-1, k)
 
+def crp_lh(theta, partition):
+    n = sum([len(s) for s in partition])
+    lh = 0
+    lh += safety_log( math.gamma(theta)*theta**len(partition) / math.gamma(theta + n) )
+    for subset in partition:
+        lh += safety_log(math.gamma(len(subset)))
+    return lh
+
+def simulate_crp(theta, n):
+    part = []
+    for i in range(0, n):
+        if len(part) == 0:
+            # First customer
+            part.append([i])
+        else:
+            # Subsequent customer
+            if random.random() <= theta /  (theta + i):
+                # Start new table
+                part.append([i])
+            else:
+                # Sample old table
+                dist = [len(subset)/(theta + i) for subset in part]
+                dist = [p/sum(dist) for p in dist]
+                roll = random.random()
+                cumul = 0
+                for subset, p in zip(part, dist):
+                    cumul += p
+                    if cumul >= roll:
+                        subset.append(i)
+                        break
+    assert sum([len(subset) for subset in part]) == n
+    return part
+
 class Clusterer:
 
     def __init__(self, matrices):
@@ -37,6 +70,8 @@ class Clusterer:
         self.within_sigma = 0.1
         self.between_mu = 0.75
         self.between_sigma = 0.1
+
+        self.compute_mean_distance()
 
         # Priors
         self.theta_prior = scipy.stats.gamma(1.2128, loc=0.0, scale=1.0315)
@@ -63,6 +98,15 @@ class Clusterer:
         self.verbose = True
         self.change_partitions = True
         self.change_params = True
+
+    def compute_mean_distance(self):
+        mean = 0
+        norm = 0
+        for m in self.matrices:
+            for x,y in itertools.combinations(range(0,len(m)),2):
+                mean += m[x][y]
+                norm +=1
+        self.mean_distance = mean/norm
 
     def init_partitions(self, method="thresh"):
         """Construct initial partitions for all matrices.  This is not done
@@ -273,10 +317,8 @@ class Clusterer:
         if not self.dirty_theta:
             return self.crp_likelihood
         lh = 0
-        for matrix, part in zip(self.matrices, self.partitions):
-            lh += safety_log( math.gamma(self.theta)*self.theta**len(part) / math.gamma(self.theta + len(matrix)) )
-            for bit in part:
-                lh += safety_log(math.gamma(len(bit)))
+        for part in self.partitions:
+            lh += crp_lh(self.theta, part)
         self.crp_likelihood = lh
         self.dirty_theta = False
         return lh
@@ -339,15 +381,17 @@ class Clusterer:
             if roll < 0.50:
                 # Half the time, change the parameters
                 self.move_change_params()
-            elif roll < 1.00:
+            elif roll < 0.75:
                 # The other half, change the partition
                 #self.move_change_partition()
                 self.move_change_partition()
-            else:
+            elif roll < 0.99:
                 if map_mode:
                     self.move_smart()
                 else:
                     self.move_change_many_things()
+            else:
+                self.move_unstick()
         elif self.change_params:
             self.move_change_params()
         elif self.change_partitions:
@@ -728,6 +772,42 @@ class Clusterer:
         self.dirty_theta = True
         return True
 
+    def move_unstick(self):
+        self.operator = "unsticker"
+        # Draw theta from prior
+        old = self.theta
+        self.theta = self.theta_prior.rvs(1)[0]
+        self.proposal_ratio *= self.theta_prior.pdf(old) / self.theta_prior.pdf(self.theta)
+        # Simulate all partitions from CRP process
+        for i in range(0, len(self.partitions)):
+            old_prob = math.exp(crp_lh(old, self.partitions[i]))
+            self.partitions[i] = simulate_crp(self.theta, sum([len(s) for s in self.partitions[i]]))
+            new_prob = math.exp(crp_lh(self.theta, self.partitions[i]))
+            self.dirty_parts[i] = True
+            self.proposal_ratio *= old_prob / new_prob
+        # Sample both means from a narrow distribution centred on the empirical mean distance
+        mean_dist = scipy.stats.norm(loc=self.mean_distance, scale=0.05)
+        old = self.within_mu
+        self.within_mu = scipy.stats.norm(loc=self.mean_distance, scale=0.05).rvs(1)[0]
+        self.proposal_ratio *= mean_dist.pdf(old) / mean_dist.pdf(self.within_mu)
+        old = self.between_mu
+        self.between_mu = scipy.stats.norm(loc=self.mean_distance, scale=0.05).rvs(1)[0]
+        self.proposal_ratio *= mean_dist.pdf(old) / mean_dist.pdf(self.between_mu)
+        # Sample both variances from a narrow distribution centred somewhere in the higher region of the prior... 
+        sigma_dist = scipy.stats.norm(loc=0.15, scale=0.025)
+        old = self.within_sigma
+        self.within_sigma = sigma_dist.rvs(1)[0]
+        self.proposal_ratio *= sigma_dist.pdf(old) / sigma_dist.pdf(self.within_sigma)
+        old = self.between_sigma
+        self.between_sigma = sigma_dist.rvs(1)[0]
+        self.proposal_ratio *= sigma_dist.pdf(old) / sigma_dist.pdf(self.between_sigma)
+        # We have messed with ALL the things
+        self.dirty_theta = True
+        self.dirty_partitions = [True for p in self.partitions]
+        self.update_lh_cache("within")
+        self.update_lh_cache("between")
+        return True
+        
     def instrument(self):
         print("\t".join(["%.6f" % x for x in (self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma, [len(p) for p in self.partitions].count(1), [len(p) for p in self.partitions].count(max([len(p) for p in self.partitions])))]))
 
