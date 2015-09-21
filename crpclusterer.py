@@ -199,7 +199,8 @@ class Clusterer:
         if self.verbose:
             print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
         for i in range(0, burnin):
-            self.make_mcmc_move()
+            for j in range(0, lag):
+                self.make_mcmc_move()
         if filename:
             fp = open(filename, "w")
             fp.write("\t".join("Sample Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split())+"\n")
