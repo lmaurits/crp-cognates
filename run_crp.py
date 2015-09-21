@@ -1,16 +1,43 @@
 import os
+import pdb
 import glob
 
 from lingpy import *
 from lingpy.evaluate.acd import *
 
 from fileio import read_data, get_cogids, extend_csv
-from crpclusterer import Clusterer
+from mcmc_post import CladeCounter
+from crpclusterer import Clusterer as Clusterer
+
+def get_mcmc_consensus(ids, matrices, filename):
+    # Sample!
+    clusterer = Clusterer(matrices)
+    clusterer.verbose = False
+    clusterer.init_partitions()
+    partitions = []
+    for n, sample in enumerate(clusterer.sample_posterior(1000,500,100, filename)):
+        print("\r%d" %n,end="")
+        partitions.append(sample[-1])
+    consensus = []
+    for i in range(len(ids)):
+        cc = CladeCounter()
+        for part in [p[i] for p in partitions]:
+            cc.update_counts(part)
+        consensus.append(cc.get_consensus())
+    return consensus
+
+def get_map(ids, matrices):
+    clusterer = Clusterer(matrices)
+    clusterer.verbose = False
+    clusterer.init_partitions()
+    clusterer.find_MAP()
+    return clusterer.partitions
 
 data_files = glob.glob("./Test set/*.csv")
 
 for method in ("sca", "lex"):
     for filename in data_files:
+        print(method, filename)
         # Derive matrix filename from .csv file and method
         dirr = os.path.dirname(filename)
         base = os.path.basename(filename)
@@ -20,13 +47,12 @@ for method in ("sca", "lex"):
         # Read matrix data
         ids, matrices = read_data(matrix_filename)
 
-        # Find MAP partitions
-        clusterer = Clusterer(matrices)
-        clusterer.init_partitions()
-        clusterer.find_MAP()
+        log_filename = "mcmc_%s_%s.log" % (root, method)
+        consensus = get_mcmc_consensus(ids, matrices, log_filename)
+#        consensus = get_map(ids, matrices)
 
         # Generate CogIDs from MAP partitions
-        results = get_cogids(ids, clusterer.partitions)
+        results = get_cogids(ids, consensus)
 
         # Extend the corresponding .csv file to include the new
         # CogIDs
