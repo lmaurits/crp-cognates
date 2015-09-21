@@ -123,7 +123,7 @@ class Clusterer:
                     assigned = False
                     for bit in part:
                         # Put it in a class if it's close to the first member of that class
-                        if matrix[i][bit[0]] <= 0.50:
+                        if matrix[i][bit[0]] <= self.mean_distance:
                             bit.append(i)
                             assigned = True
                             break
