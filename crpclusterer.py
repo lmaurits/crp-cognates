@@ -183,7 +183,7 @@ class Clusterer:
             self.dirty_parts = [False for part in self.partitions]
             self.draw_proposal(map_mode=True)
             new_poster = self.compute_posterior()
-            if new_poster > max_posterior:
+            if new_poster > max_poster:
                 # Accept
                 max_poster = new_poster
                 if self.verbose:
@@ -194,8 +194,9 @@ class Clusterer:
             if hookfunc:
                 hookfunc()
 
-    def sample_posterior(self, iterations, burnin, lag, filename=None):
+    def sample_posterior(self, iterations, burnin, lag, filename=None, sample_prior=False):
         self.compute_posterior()
+
         if self.verbose:
             print("\t".join("Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split()))
         for i in range(0, burnin):
@@ -207,7 +208,7 @@ class Clusterer:
         iters = 0
         while iters < iterations:
             for i in range(0, lag):
-                self.make_mcmc_move()
+                self.make_mcmc_move(sample_prior)
             if self.verbose:
                 self.instrument()
             if filename:
@@ -218,17 +219,23 @@ class Clusterer:
         if filename:
             fp.close()
 
-    def make_mcmc_move(self):
+    def make_mcmc_move(self, sample_prior=False):
         self.snapshot()
         self.dirty_theta = False
         self.dirty_parts = [False for part in self.partitions]
         old_poster = self.posterior
+        old_prior = self.prior
         self.draw_proposal()
         new_poster = self.compute_posterior()
+        new_prior = self.prior
         try:
-            poster_ratio = math.exp(new_poster - old_poster)
+            if sample_prior:
+                poster_ratio = math.exp(new_prior - old_prior)
+            else:
+                poster_ratio = math.exp(new_poster - old_poster)
         except OverflowError:
-            if new_poster >= old_poster:
+            if ((not sample_prior and new_poster >= old_poster)
+                    or (sample_prior and new_prior >= old_prior)):
                 poster_ratio = 1.0
             else:
                 poster_ratio = 0.0
