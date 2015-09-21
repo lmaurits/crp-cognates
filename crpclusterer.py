@@ -203,7 +203,7 @@ class Clusterer:
                 self.make_mcmc_move()
         if filename:
             fp = open(filename, "w")
-            fp.write("\t".join("Sample Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma".split())+"\n")
+            fp.write("\t".join("Sample Prior Lh Poster Theta W_mu W_sigma B_mu B_sigma crp_lh".split())+"\n")
         iters = 0
         while iters < iterations:
             for i in range(0, lag):
@@ -211,7 +211,8 @@ class Clusterer:
             if self.verbose:
                 self.instrument()
             if filename:
-                fp.write(("%d\t" % iters) + "\t".join(["%.6f" % x for x in (self.prior, self.lh, self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma)])+"\n")
+                fp.write(("%d\t" % iters) + "\t".join(["%.6f" % x for x in (self.prior, self.lh, self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma, self.crp_likelihood)])+"\n")
+
             yield (self.posterior, self.theta, self.within_mu, self.within_sigma, self.between_mu, self.between_sigma, self.partitions)
             iters += 1
         if filename:
